@@ -1,0 +1,6 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, empty with context %}
+{% block title %}Page unavailable · DueWise{% endblock %}
+{% block content %}<section class="panel error-panel">
+{% call empty(message, 'info') %}<a class="button primary" href="{{ url_for('home' if g.user else 'auth.welcome') }}">Return to DueWise</a>{% endcall %}
+</section>{% endblock %}

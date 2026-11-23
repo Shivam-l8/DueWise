@@ -1,0 +1,77 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, token, icon, date_field, empty with context %}
+{% block title %}{{ title }} · DueWise{% endblock %}
+{% block content %}
+<a class="text-link back-link" href="{{ url_for('bills.index') }}">All recurring bills</a>
+{% call heading(title, 'Confirm the payment terms before this pattern enters your schedule.' if candidate else ('Manage the schedule and payment history for this bill.' if bill else 'Add a recurring commitment by hand.')) %}
+{% if bill %}<span class="pill {{ 'pill-good' if bill.active else '' }}">{{ 'Active' if bill.active else 'Archived' }}</span>{% endif %}
+{% endcall %}
+{% if candidate %}<section class="panel">
+  <header class="panel-header"><div><h2 class="merchant-name">{{ candidate.merchant }}</h2><p>{{ candidate.account_name }} · {{ frequencies[candidate.frequency] }} pattern</p></div>
+  <form method="post">{{ token() }}<button class="button secondary small" name="action" value="dismiss">Dismiss suggestion</button></form></header>
+  <div class="evidence-summary">
+    <div><small>Matching payments</small><strong>{{ candidate.occurrences }}</strong></div>
+    <div><small>Days between payments</small><strong>{{ candidate.min_gap }}{% if candidate.max_gap != candidate.min_gap %}–{{ candidate.max_gap }}{% endif %}</strong></div>
+    <div><small>Amounts observed</small><strong>{{ candidate.min_amount|money }}{% if candidate.max_amount != candidate.min_amount %}–{{ candidate.max_amount|money }}{% endif %}</strong></div>
+    <div><small>Historical estimate</small><strong>{{ candidate.suggested_next_date|day }}</strong></div>
+  </div>
+  <p class="muted">These purchases share a cleaned merchant name and follow a similar interval and amount range.</p>
+  {% if not item.due_date %}<div class="hint">{{ icon('info', 18) }} The historical estimate has passed. Choose a date for the first payment you want to track.</div>{% endif %}
+  <div class="table-scroll"><table><thead><tr><th scope="col">Date</th><th scope="col">Original description</th><th scope="col" class="numeric">Amount</th></tr></thead>
+    <tbody>{% for row in candidate.evidence %}<tr><td class="nowrap">{{ row.txn_date|day }}</td><td>{{ row.description }}</td><td class="numeric">{{ row.amount|cents|money }}</td></tr>{% endfor %}</tbody>
+  </table></div>
+</section>{% endif %}
+{% if bill and bill.active and next_date %}<div class="hint section-hint">{{ icon('calendar', 18) }} Next scheduled payment is {{ next_date|day }}. The first date anchors the schedule.</div>{% endif %}
+<section class="panel form-panel">
+  <header class="panel-header"><div><h2>{{ 'Confirm bill details' if candidate else 'Bill details' }}</h2></div></header>
+  <form class="stack" method="post">{{ token() }}
+    <div class="form-grid">
+      <label class="field">Bill name<input name="name" value="{{ item.name or '' }}" maxlength="80" required></label>
+      <label class="field">Payment account
+        {% if candidate or bill %}<input value="{{ accounts[0].name }}" readonly>
+        {% else %}<select name="account_id" required>{% for account in accounts %}<option value="{{ account.id }}" {% if account.id == item.account_id %}selected{% endif %}>{{ account.name }}</option>{% endfor %}</select>{% endif %}
+      </label>
+      <label class="field">Expected amount (CAD)<input name="amount" value="{{ item.amount or '' }}" inputmode="decimal" placeholder="0.00" required></label>
+      <label class="field">Frequency<select name="frequency" required>{% for key,label in frequencies.items() %}<option value="{{ key }}" {% if key == item.frequency %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      {{ date_field('due_date', item.due_date, 'First expected date' if not bill else 'Schedule start date') }}
+      <label class="field">Category<input name="category" value="{{ item.category or '' }}" maxlength="60" placeholder="Optional"></label>
+    </div>
+    <label class="checkbox"><input type="checkbox" name="autopay" {% if item.autopay %}checked{% endif %}> Paid by autopay</label>
+    <div class="button-row"><button class="button primary">{{ 'Confirm bill' if candidate else ('Save changes' if bill else 'Add bill') }}</button><a class="button secondary" href="{{ url_for('bills.index') }}">Back</a></div>
+  </form>
+</section>
+{% if bill %}
+<section class="panel" id="payment-history">
+  <header class="panel-header"><div><h2>Payment history</h2><p>Recorded amounts stay with this bill when you update its terms.</p></div></header>
+  <div class="content-grid inner-grid">
+    <details class="compact-details"><summary>Record payment manually</summary>
+      <form method="post" class="stack" action="{{ url_for('bills.payment', bill_id=bill.id) }}">{{ token() }}
+        <div class="form-grid">{{ date_field('paid_on', today.isoformat(), 'Paid on') }}
+        <label class="field">Paid amount (CAD)<input name="amount" inputmode="decimal" required></label></div>
+        <label class="field">Note<input name="note" maxlength="160"></label>
+        <label class="checkbox"><input type="checkbox" name="advance_due" value="1"> Advance the bill to its next scheduled date</label>
+        <div><button class="button primary small">Record payment</button></div>
+      </form>
+    </details>
+    <details class="compact-details"><summary>Link imported purchase</summary>
+      {% if eligible %}<form method="post" class="stack" action="{{ url_for('bills.payment', bill_id=bill.id) }}">{{ token() }}
+        <label class="field">Purchase<select name="transaction_id" required>{% for row in eligible %}<option value="{{ row.id }}">{{ row.txn_date|day('%b %d') }} · {{ row.description }} · {{ row.amount|cents|money }}</option>{% endfor %}</select></label>
+        <label class="checkbox"><input type="checkbox" name="advance_due" value="1"> Advance the bill to its next scheduled date</label>
+        <div><button class="button primary small">Link purchase</button></div>
+      </form>{% else %}<p class="muted">There are no unlinked purchases from this account.</p>{% endif %}
+    </details>
+  </div>
+  {% if history %}
+  {% if history|length > 1 %}{% set difference=history[0].amount_cents - history[1].amount_cents %}<p class="muted">Latest payment {{ 'was unchanged from' if not difference else ('was ' ~ (difference|abs|money) ~ (' higher than' if difference > 0 else ' lower than')) }} the previous recorded payment.</p>{% endif %}
+  <div class="table-scroll"><table><thead><tr><th scope="col">Paid on</th><th scope="col">Record</th><th scope="col" class="numeric">Amount</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+    <tbody>{% for row in history %}<tr><td class="nowrap">{{ row.paid_on|day }}</td><td>{{ row.note or 'Manual payment' }}</td><td class="numeric">{{ row.amount_cents|money }}</td><td>
+    <form method="post" action="{{ url_for('bills.remove_payment', bill_id=bill.id, payment_id=row.id) }}">{{ token() }}<button class="text-link danger-text" aria-label="Remove payment on {{ row.paid_on|day }}">Remove</button></form></td></tr>{% endfor %}</tbody>
+  </table></div>
+  {% else %}{{ empty('No payments have been recorded for this bill.') }}{% endif %}
+</section>
+<section class="panel form-panel"><details class="danger-zone"><summary>{{ 'Archive bill' if bill.active else 'Reactivate bill' }}</summary>
+  <p>{{ 'Archiving removes future payments from the schedule and keeps your payment history.' if bill.active else 'Reactivating returns this bill to the payment schedule.' }}</p>
+  <form method="post">{{ token() }}<button class="button {{ 'danger' if bill.active else 'secondary' }}" name="action" value="{{ 'archive' if bill.active else 'activate' }}">{{ 'Archive bill' if bill.active else 'Reactivate bill' }}</button></form>
+</details></section>
+{% endif %}
+{% endblock %}

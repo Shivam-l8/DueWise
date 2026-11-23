@@ -1,0 +1,25 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, token, date_field with context %}
+{% block title %}Edit transaction · DueWise{% endblock %}
+{% block content %}
+<a class="text-link back-link" href="{{ url_for('transactions', account=item.account_id) }}">All transactions</a>
+{{ heading('Edit transaction', 'Changes apply to spending summaries and future detection.') }}
+<section class="panel form-panel">
+  <form method="post" class="stack">{{ token() }}
+    <div class="form-grid">
+      <label class="field wide">Description<input name="description" value="{{ item.description }}" maxlength="160" required></label>
+      {{ date_field('txn_date', item.txn_date, 'Transaction date') }}
+      <label class="field">Amount (CAD)<input name="amount" inputmode="decimal" value="{{ item.amount }}" required></label>
+      <label class="field">Account<select name="account_id">{% for account in accounts %}<option value="{{ account.id }}" {% if account.id == item.account_id %}selected{% endif %}>{{ account.name }}</option>{% endfor %}</select></label>
+      <label class="field">Transaction type<select name="kind"><option value="">Auto-detect</option>
+      {% for key,label in kinds.items() %}<option value="{{ key }}" {% if key == item.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+      <label class="field wide">Category override<input name="category_override" value="{{ item.category_override }}" maxlength="60" placeholder="Use category rules"></label>
+    </div>
+    <div class="button-row"><button class="button primary">Save changes</button><a class="button secondary" href="{{ url_for('transactions') }}">Cancel</a></div>
+  </form>
+</section>
+<section class="panel form-panel"><details class="danger-zone">
+  <summary>Delete transaction</summary><p>The transaction will be removed from spending and detection. Any recorded bill payment stays in its history.</p>
+  <form method="post">{{ token() }}<button class="button danger" name="action" value="delete">Delete transaction</button></form>
+</details></section>
+{% endblock %}

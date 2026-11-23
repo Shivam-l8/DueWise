@@ -1,0 +1,52 @@
+{% from '_ui.html' import icon, brand, token with context %}
+<!doctype html>
+<html lang="en-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#f5f7f4">
+<title>{% block title %}DueWise{% endblock %}</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+<script src="{{ url_for('static', filename='site.js') }}" defer></script>
+</head>
+<body class="{% if not g.user %}guest{% endif %}">
+<a class="skip-link" href="#main-content">Skip to content</a>
+{% if g.user %}
+<div class="app-shell">
+<aside class="sidebar">
+  <a class="brand" href="{{ url_for('home') }}" aria-label="DueWise overview">{{ brand() }}</a>
+  {% set links = [('home','home','overview','Overview'),('transactions','transactions','transactions','Transactions'),
+                  ('bills.index','bills','repeat','Recurring bills'),('planning.index','forecast','forecast','Cash flow'),
+                  ('imports.index','imports','upload','Imports'),('settings','settings','settings','Settings')] %}
+  <nav class="side-nav" aria-label="Workspace">
+    {% for endpoint, key, symbol, label in links %}
+    <a href="{{ url_for(endpoint) }}" {% if active == key %}class="selected" aria-current="page"{% endif %}>{{ icon(symbol, 19) }}<span>{{ label }}</span></a>
+    {% endfor %}
+  </nav>
+  <div class="sidebar-footer">
+    <div class="profile-mark">{{ 'D' if g.user.demo else g.user.username[0]|upper }}</div>
+    <div class="profile-text"><strong>{{ 'Demo workspace' if g.user.demo else g.user.username }}</strong><small>{{ 'Synthetic records' if g.user.demo else 'Local workspace' }}</small></div>
+    <form method="post" action="{{ url_for('auth.sign_out') }}">{{ token() }}<button class="icon-button" title="Sign out" aria-label="Sign out">{{ icon('exit', 18) }}</button></form>
+  </div>
+</aside>
+<div class="workspace">
+  <header class="workspace-bar">
+    <span class="breadcrumb">Workspace <span aria-hidden="true">/</span>
+      <strong>{{ dict(home='Overview',transactions='Transactions',bills='Recurring bills',forecast='Cash flow',imports='Imports',settings='Settings').get(active, 'DueWise') }}</strong>
+    </span>
+    <span class="workspace-badge">{{ icon('shield', 15) }} {{ 'Demo data' if g.user.demo else 'Stored locally' }}</span>
+  </header>
+  <main id="main-content" class="main">
+{% else %}
+<main id="main-content" class="guest-main">
+{% endif %}
+{% with messages=get_flashed_messages(with_categories=true) %}{% if messages %}
+<div class="notices" aria-live="polite">
+{% for tone, message in messages %}<div class="notice notice-{{ tone }}">{{ icon('check' if tone == 'success' else 'info', 18) }}<span>{{ message }}</span></div>{% endfor %}
+</div>
+{% endif %}{% endwith %}
+{% block content %}{% endblock %}
+</main>
+{% if g.user %}</div></div>{% endif %}
+</body>
+</html>

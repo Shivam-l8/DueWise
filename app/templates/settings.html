@@ -1,0 +1,52 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, token, empty with context %}
+{% block title %}Settings · DueWise{% endblock %}
+{% block content %}
+{{ heading('Settings', 'Manage accounts, automatic categories, and workspace data.') }}
+<div class="content-grid">
+<section class="panel">
+  <header class="panel-header"><div><h2>Accounts</h2><p>Group statements and commitments by account.</p></div></header>
+  <ul class="plain-list accounts-list">{% for item in accounts %}
+    <li><div><strong>{{ item.name }}</strong><small>{{ account_kinds[item.kind] }}</small></div>
+    {% if accounts|length > 1 %}<details class="danger-zone"><summary>Remove</summary>
+      <form method="post" action="{{ url_for('remove_account', account_id=item.id) }}" class="stack">{{ token() }}
+        <p>This deletes the account’s imports, transactions, bills, payments, and forecast.</p>
+        <label class="field">Type DELETE to continue<input name="confirm" required autocomplete="off"></label><button class="button danger small">Delete account</button>
+      </form>
+    </details>{% endif %}</li>
+  {% endfor %}</ul>
+  <form method="post" action="{{ url_for('add_account') }}" class="stack form-section">{{ token() }}
+    <div class="form-grid">
+      <label class="field">Account name<input name="name" maxlength="50" required placeholder="e.g. Everyday chequing"></label>
+      <label class="field">Type<select name="kind">{% for key,label in account_kinds.items() %}<option value="{{ key }}">{{ label }}</option>{% endfor %}</select></label>
+    </div>
+    <div><button class="button primary small">Add account</button></div>
+  </form>
+</section>
+<section class="panel" id="category-rules">
+  <header class="panel-header"><div><h2>Category rules</h2><p>Match keywords in descriptions. Longer matches take priority.</p></div></header>
+  <form method="post" action="{{ url_for('save_category_rule') }}" class="stack">{{ token() }}
+    <div class="form-grid">
+      <label class="field">Keyword<input name="keyword" maxlength="80" required placeholder="e.g. internet"></label>
+      <label class="field">Category<input name="category" maxlength="60" required placeholder="e.g. Utilities"></label>
+    </div>
+    <div><button class="button primary small">Save rule</button></div>
+  </form>
+  {% if rules %}<div class="table-scroll rules-table"><table><thead><tr><th scope="col">Keyword</th><th scope="col">Category</th><th scope="col"><span class="sr-only">Remove</span></th></tr></thead>
+  <tbody>{% for rule in rules %}<tr>
+    <td>{{ rule.keyword }}</td><td>{{ rule.category }}</td><td><form method="post" action="{{ url_for('remove_category_rule', rule_id=rule.id) }}">{{ token() }}<button class="text-link danger-text" aria-label="Remove {{ rule.keyword }} rule">Remove</button></form></td>
+  </tr>{% endfor %}</tbody></table></div>{% else %}{{ empty('No category rules yet.', 'settings') }}{% endif %}
+</section>
+</div>
+<section class="panel form-panel">
+  <header class="panel-header"><div><h2>Workspace data</h2><p>Records are stored in a private workspace on this computer.</p></div></header>
+  <div class="button-row"><a class="button secondary small" href="{{ url_for('export') }}">Export transactions</a></div>
+  <details class="danger-zone form-section"><summary>Delete workspace</summary>
+    <form action="{{ url_for('auth.delete_workspace') }}" method="post" class="stack">{{ token() }}
+      <p>This permanently deletes this workspace and its records.</p>
+      <label class="field">Type DELETE to continue<input name="confirm" required autocomplete="off"></label>
+      <div><button class="button danger">Delete workspace</button></div>
+    </form>
+  </details>
+</section>
+{% endblock %}

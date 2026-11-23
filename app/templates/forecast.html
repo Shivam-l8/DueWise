@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, token, icon, chart_svg, date_field, empty with context %}
+{% macro planned_row(event) -%}
+<div class="event-row" data-event-row>
+  <input type="hidden" name="event_key" value="{{ event.key }}">
+  <label class="field">Description<input name="event_name" value="{{ event.name }}" maxlength="70" placeholder="e.g. Paycheque"></label>
+  <label class="field">Date<input type="date" name="event_date" value="{{ event.date }}"></label>
+  <label class="field">Amount (CAD)<input name="event_amount" value="{{ event.amount }}" inputmode="decimal" placeholder="0.00"></label>
+  <button type="button" class="icon-button remove-event" aria-label="Remove planned transaction" title="Remove planned transaction" data-remove-event>{{ icon('close', 17) }}</button>
+</div>
+{%- endmacro %}
+{% block title %}Cash flow · DueWise{% endblock %}
+{% block content %}
+{% call heading('Cash flow', 'Compare your expected balance with a change in income or bills.') %}
+{% if baseline %}<a class="button secondary" href="{{ url_for('planning.index', account=account_id, download='csv') }}">{{ icon('download', 18) }} Export comparison</a>{% endif %}
+{% endcall %}
+{% if not accounts %}
+<section class="panel">{% call empty('Add a chequing, savings, or cash account to create a projection.', 'wallet') %}<a class="button primary" href="{{ url_for('settings') }}">Manage accounts</a>{% endcall %}</section>
+{% else %}
+<form class="filters overview-filters" method="get"><label class="field inline-field"><span>Cash account</span><select name="account">
+  {% for item in accounts %}<option value="{{ item.id }}" {% if item.id == account_id %}selected{% endif %}>{{ item.name }}</option>{% endfor %}
+</select></label><button class="button secondary small">View account</button></form>
+
+{% if baseline %}
+<section class="panel forecast-chart" id="projection">
+  <header class="panel-header"><div><h2>Projected balance</h2><p>{{ baseline.points[0][0]|day }} to {{ baseline.points[-1][0]|day }} · CAD</p></div>
+  <div class="chart-legend"><span class="chart-key"><i></i> Baseline</span><span class="chart-key alternative-key"><i></i> Alternative</span></div></header>
+  {{ chart_svg(chart, 'Two projected end-of-day cash balances with a zero line') }}
+  <div class="table-scroll"><table class="comparison">
+    <thead><tr><th scope="col">Measure</th><th scope="col" class="numeric">Baseline</th><th scope="col" class="numeric">Alternative</th><th scope="col" class="numeric">Change</th></tr></thead>
+    <tbody>
+      <tr><th scope="row">Lowest balance</th><td class="numeric">{{ baseline.minimum|money }}</td><td class="numeric">{{ alternative.minimum|money }}</td><td class="numeric">{{ (alternative.minimum - baseline.minimum)|money }}</td></tr>
+      <tr><th scope="row">Ending balance</th><td class="numeric">{{ baseline.ending|money }}</td><td class="numeric">{{ alternative.ending|money }}</td><td class="numeric">{{ (alternative.ending - baseline.ending)|money }}</td></tr>
+      <tr><th scope="row">Maximum shortfall</th><td class="numeric">{{ baseline.shortfall|money }}</td><td class="numeric {% if alternative.shortfall %}negative{% endif %}">{{ alternative.shortfall|money }}</td><td class="numeric">{{ (alternative.shortfall - baseline.shortfall)|money }}</td></tr>
+      <tr><th scope="row">First shortfall</th><td class="numeric">{{ baseline.first_shortfall|day if baseline.first_shortfall else 'None' }}</td><td class="numeric">{{ alternative.first_shortfall|day if alternative.first_shortfall else 'None' }}</td><td class="numeric">—</td></tr>
+      <tr><th scope="row">Days ending below zero</th><td class="numeric">{{ baseline.days_below }}</td><td class="numeric">{{ alternative.days_below }}</td><td class="numeric">{{ '%+d'|format(alternative.days_below - baseline.days_below) }}</td></tr>
+    </tbody></table></div>
+  <details class="compact-details journal"><summary>View scheduled movements and balances</summary>
+    <div class="content-grid inner-grid">
+    {% for scenario,result in [('Baseline',baseline),('Alternative',alternative)] %}<div><h3>{{ scenario }}</h3>
+      {% if result.journal %}<ul class="journal-list">{% for when,movements,balance in result.journal %}
+      <li><div><strong>{{ when|day('%b %d') }}</strong><strong class="numeric">{{ balance|money }}</strong></div>
+      {% for name,amount in movements %}<small>{{ name }} <span class="numeric">{{ amount|money }}</span></small>{% endfor %}</li>{% endfor %}</ul>
+      {% else %}<p class="muted">No scheduled movements in this period.</p>{% endif %}
+    </div>{% endfor %}</div>
+  </details>
+</section>
+{% endif %}
+<section class="panel" id="assumptions">
+  <header class="panel-header"><div><h2>Projection assumptions</h2><p>For the selected cash account. Enter its opening balance and planned movements.</p></div></header>
+  <form class="stack forecast-form" action="{{ url_for('planning.index') }}" method="post" data-forecast>{{ token() }}<input type="hidden" name="account" value="{{ account_id }}">
+    <div class="form-grid three">
+      {{ date_field('start', assumptions.start, 'Start date') }}
+      <label class="field">Projection length (days)<input name="days" type="number" min="2" max="366" value="{{ assumptions.days }}" required></label>
+      <label class="field">Opening balance (CAD)<input name="opening" inputmode="decimal" value="{{ assumptions.opening }}" required></label>
+    </div>
+    <div class="form-section">
+      <div class="panel-header"><div><h3>Planned transactions</h3><p>Use positive amounts for income and negative amounts for expenses.</p></div>
+      <button class="button secondary small" type="button" data-add-event>{{ icon('plus', 16) }} Add row</button></div>
+      <div class="event-list" data-event-list>{% for event in assumptions.events %}{{ planned_row(event) }}{% else %}{{ planned_row(dict(key='0',name='',date='',amount='')) }}{% endfor %}</div>
+      <template data-event-template>{{ planned_row(dict(key='',name='',date='',amount='')) }}</template>
+    </div>
+    <div class="form-section">
+      <div class="panel-header"><div><h3>Alternative scenario</h3><p>Delay one income entry, change a confirmed bill, or combine both.</p></div></div>
+      <div class="form-grid three">
+        <label class="field">Income to delay<select name="delay_event" data-delay-event>
+          <option value="">Keep income dates</option>{% for event in assumptions.events %}<option value="{{ event.key }}" {% if event.key == assumptions.delay_event %}selected{% endif %}>{{ event.name }} · {{ event.date }}</option>{% endfor %}
+        </select></label>
+        <label class="field">Delay (days)<input name="delay" type="number" min="0" max="366" value="{{ assumptions.delay or 0 }}"></label>
+        <label class="field">Bill to change<select name="change_bill">
+          <option value="">Keep all bills</option>{% for bill in bills %}<option value="{{ bill.id }}" {% if bill.id == assumptions.change_bill %}selected{% endif %}>{{ bill.name }} · {{ bill.amount_cents|money }}</option>{% endfor %}
+        </select></label>
+        <label class="field">Bill adjustment<select name="bill_action">
+          <option value="">No adjustment</option><option value="cancel" {% if assumptions.bill_action == 'cancel' %}selected{% endif %}>Cancel scheduled payments</option><option value="increase" {% if assumptions.bill_action == 'increase' %}selected{% endif %}>Increase each payment</option>
+        </select></label>
+        <label class="field">Increase per payment (CAD)<input name="increase" inputmode="decimal" value="{{ assumptions.increase or '' }}" placeholder="0.00"></label>
+      </div>
+    </div>
+    <div class="hint">{{ icon('info', 18) }} <span>Confirmed bills from this cash account are included automatically. Enter any expected card repayments and other outflows as planned transactions. Movements on the same day are netted at day end.</span></div>
+    <div><button class="button primary">{{ icon('forecast', 18) }} Calculate comparison</button></div>
+  </form>
+</section>
+{% endif %}
+{% endblock %}

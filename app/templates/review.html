@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import heading, token, icon, pager, empty with context %}
+{% block title %}Review statement import · DueWise{% endblock %}
+{% block content %}
+<a class="text-link back-link" href="{{ url_for('imports.index') }}">All imports</a>
+{% call heading('Review extracted transactions', 'Open a row to correct it, change its account, or exclude it from this batch.') %}
+<div class="button-row">
+  <form method="post" action="{{ url_for('imports.discard', batch_id=batch_id) }}">{{ token() }}<button class="button secondary">Discard batch</button></form>
+  <form method="post" action="{{ url_for('imports.commit', batch_id=batch_id) }}">{{ token() }}<button class="button primary">{{ icon('check', 18) }} Import reviewed rows</button></form>
+</div>
+{% endcall %}
+<section class="panel">
+  <header class="panel-header review-top"><div><h2>{{ total }} extracted {{ 'row' if total == 1 else 'rows' }}</h2><p>Possible duplicates are skipped unless you choose to keep them.</p></div><div class="button-row">
+    <span class="pill {% if counts.errors %}pill-warning{% endif %}">{{ counts.errors }} to correct</span>
+    <span class="pill">{{ counts.duplicates }} duplicates to skip</span>
+    <span class="pill">{{ counts.excluded }} excluded</span>
+  </div></header>
+  <nav class="tab-row" aria-label="Review filters">
+    {% for key,label in [('', 'All rows'),('errors', 'Needs correction'),('duplicates', 'Possible duplicates')] %}
+    <a href="{{ url_for('imports.review', batch_id=batch_id, tab=key) }}" {% if tab == key %}aria-current="page"{% endif %}>{{ label }}</a>
+    {% endfor %}
+  </nav>
+  {% for row in rows %}{% set item=row.raw %}
+  <details class="review-item">
+    <summary>
+      <span class="review-label"><strong>{{ item.description or 'Missing description' }}</strong><small>{{ item.filename }} · {{ item.reference }} · {{ item.account_name }}</small></span>
+      <span class="review-date">{{ (row.clean.txn_date|day) if row.clean else (item.txn_date or 'Missing date') }}</span>
+      <span class="numeric">{{ (row.clean.amount|cents|money) if row.clean else (item.amount or '—') }}</span>
+      {% if item.excluded %}<span class="pill">Excluded</span>
+      {% elif row.error %}<span class="pill pill-warning">Needs correction</span>
+      {% elif row.duplicate %}<span class="pill pill-warning">{{ 'Keep duplicate' if item.keep_duplicate else 'Possible duplicate' }}</span>
+      {% else %}<span class="pill pill-good">Ready</span>{% endif %}
+      {{ icon('chevron', 16) }}
+    </summary>
+    <form method="post" class="review-edit stack" action="{{ url_for('imports.update_row', batch_id=batch_id, row_id=item.id, page=page, tab=tab) }}">{{ token() }}
+      {% if row.error %}<div class="hint warning">{{ icon('info', 18) }} {{ row.error }}</div>{% endif %}
+      <div class="form-grid three">
+        <label class="field">Date<input name="txn_date" value="{{ item.txn_date }}" placeholder="YYYY-MM-DD" maxlength="48"></label>
+        <label class="field">Description<input name="description" value="{{ item.description }}" maxlength="500"></label>
+        <label class="field">Amount (CAD)<input name="amount" value="{{ item.amount }}" inputmode="decimal" maxlength="48"></label>
+        <label class="field">Account<select name="account_id">{% for account in accounts %}<option value="{{ account.id }}" {% if account.id == item.account_id %}selected{% endif %}>{{ account.name }}</option>{% endfor %}</select></label>
+        <label class="field">Type<select name="kind"><option value="">Auto-detect{% if row.clean %} · {{ kinds[row.clean.kind] }}{% endif %}</option>{% for key,label in kinds.items() %}<option value="{{ key }}" {% if key == item.kind %}selected{% endif %}>{{ label }}</option>{% endfor %}</select></label>
+        <label class="field">Category override<input name="category_override" value="{{ item.category_override }}" placeholder="Use category rules" maxlength="60"></label>
+      </div>
+      <div class="button-row"><label class="checkbox"><input type="checkbox" name="excluded" {% if item.excluded %}checked{% endif %}> Exclude this row</label>
+        {% if row.duplicate or item.keep_duplicate %}<label class="checkbox"><input type="checkbox" name="keep_duplicate" {% if item.keep_duplicate %}checked{% endif %}> Keep this duplicate</label>{% endif %}
+        <button class="button secondary small">Save row</button></div>
+    </form>
+  </details>
+  {% else %}{{ empty('No rows match this review filter.', 'check') }}{% endfor %}
+  {{ pager(page, pages, url_for('imports.review', batch_id=batch_id, page=page-1, tab=tab), url_for('imports.review', batch_id=batch_id, page=page+1, tab=tab)) }}
+</section>
+{% endblock %}

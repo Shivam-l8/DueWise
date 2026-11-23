@@ -1,0 +1,47 @@
+{% extends 'base.html' %}
+{% from '_ui.html' import token, icon, brand with context %}
+{% block title %}DueWise · Personal finance workspace{% endblock %}
+{% block content %}
+<div class="welcome-shell">
+  <section class="welcome-art">
+    <a href="{{ url_for('auth.welcome') }}" class="brand welcome-brand">{{ brand() }}</a>
+    <div class="welcome-copy">
+      <h1>See what’s due.<br>Plan what’s next.</h1>
+      <p>Bring your statements, recurring bills, and cash-flow scenarios into one workspace.</p>
+    </div>
+    <div class="welcome-visual" aria-hidden="true">
+      <div class="visual-grid"></div>
+      <svg viewBox="0 0 440 170" preserveAspectRatio="none">
+        <defs><linearGradient id="welcome-fill" x2="0" y2="1"><stop stop-color="#90d6ae" stop-opacity=".48"/><stop offset="1" stop-color="#90d6ae" stop-opacity="0"/></linearGradient></defs>
+        <path d="M0 151 55 140 110 127 150 138 202 92 258 102 310 54 364 69 440 20V170H0Z" fill="url(#welcome-fill)"/>
+        <path d="M0 151 55 140 110 127 150 138 202 92 258 102 310 54 364 69 440 20" fill="none" stroke="#a5e7bd" stroke-width="3"/>
+        <circle cx="310" cy="54" r="5" fill="#a5e7bd"/>
+      </svg>
+    </div>
+    <div class="welcome-foot">{{ icon('shield', 18) }} Local storage · CAD workspace</div>
+  </section>
+  <section class="welcome-access">
+    {% set mode=request.args.get('mode', '') %}
+    {% if mode not in ('register', 'sign-in') %}
+      <h2>Open DueWise</h2>
+      <p class="muted">Explore with sample statements or create a private workspace for your own records.</p>
+      <form method="post" action="{{ url_for('auth.demo') }}" class="stack">{{ token() }}
+        <button class="button primary full">{{ icon('overview', 18) }} Open demo workspace</button>
+      </form>
+      <div class="access-actions">
+        <a class="button secondary" href="{{ url_for('auth.welcome', mode='register') }}">Create workspace</a>
+        <a class="text-link" href="{{ url_for('auth.welcome', mode='sign-in') }}">Sign in</a>
+      </div>
+    {% else %}
+      <a class="text-link back-link" href="{{ url_for('auth.welcome') }}">All access options</a>
+      <h2>{{ 'Create a workspace' if mode == 'register' else 'Sign in to DueWise' }}</h2>
+      <p class="muted">{{ 'Your workspace is stored on this computer.' if mode == 'register' else 'Enter your local workspace credentials.' }}</p>
+      <form method="post" class="stack" action="{{ url_for('auth.register' if mode == 'register' else 'auth.sign_in') }}">{{ token() }}
+        <label class="field">Username<input name="username" minlength="3" maxlength="32" autocomplete="username" required></label>
+        <label class="field">Password<input name="password" type="password" minlength="8" maxlength="128" autocomplete="{{ 'new-password' if mode == 'register' else 'current-password' }}" required></label>
+        <button class="button primary full">{{ 'Create workspace' if mode == 'register' else 'Sign in' }}</button>
+      </form>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

@@ -1,0 +1,41 @@
+txn_date,description,amount,series,expected_recurring
+2026-01-05,Internet Payment,-79.00,internet,yes
+2026-02-06,POS INTERNET REF 729,-81.50,internet,yes
+2026-03-05,Internet Debit ID 631,-80.25,internet,yes
+2026-03-05,Internet Debit ID 631,-80.25,internet,yes
+2026-01-12,Music Subscription,-11.99,music,yes
+2026-02-12,Music Subscription,-11.99,music,yes
+2026-03-12,Music Subscription,-11.99,music,yes
+2026-01-30,HOME ENERGY BILL,-62.00,energy,yes
+2026-02-27,Home Energy Bill Ref 624,-74.20,energy,yes
+2026-03-30,POS Home Energy Bill,-69.10,energy,yes
+2026-01-01,Studio Membership,-19.00,studio,yes
+2026-01-15,Studio Membership REF 113,-19.00,studio,yes
+2026-01-29,Studio Membership Debit,-19.00,studio,yes
+2026-02-12,Studio Membership REF 448,-19.00,studio,yes
+2026-01-31,Cloud Desk,-80.00,cloud,yes
+2026-02-28,Cloud Desk,-80.00,cloud,yes
+2026-03-31,Cloud Desk,-80.00,cloud,yes
+2026-01-05,Gas Utility,-28.00,gas,yes
+2026-02-05,Gas Utility,-59.00,gas,yes
+2026-03-05,Gas Utility,-90.00,gas,yes
+2026-01-04,Metro Cafe,-5.50,cafe,no
+2026-01-06,Metro Cafe,-5.50,cafe,no
+2026-02-02,Metro Cafe,-5.50,cafe,no
+2026-03-24,Metro Cafe,-5.50,cafe,no
+2026-01-07,Groceries Market,-84.00,groceries,no
+2026-01-30,Groceries Market,-46.50,groceries,no
+2026-02-02,Groceries Market,-112.00,groceries,no
+2026-02-09,Groceries Market,-25.00,groceries,no
+2026-03-05,Groceries Market,-72.68,groceries,no
+2026-01-10,Uniform Shop,-37.50,uniform,no
+2026-02-10,Uniform Shop,-37.50,uniform,no
+2026-03-13,Uniform Shop Refund,37.50,uniform,no
+2026-01-20,Transfer to savings,-200.00,savings,no
+2026-02-20,Transfer to savings,-200.00,savings,no
+2026-01-25,Credit Card Payment,-150.00,card repayment,no
+2026-02-25,Credit Card Payment,-150.00,card repayment,no
+2026-03-01,One-time Book,-21.00,book,no
+2026-03-08,One-time Book Refund,21.00,book,no
+2026-03-01,Payroll,1650.00,payroll,no
+2026-03-15,Payroll,1650.00,payroll,no
